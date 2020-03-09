@@ -1,0 +1,8 @@
+{
+  "domain": "thessla_hrv",
+  "name": "Thessla hrv",
+  "documentation": "",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": ["pymodbus==2.3.0"]
+}
