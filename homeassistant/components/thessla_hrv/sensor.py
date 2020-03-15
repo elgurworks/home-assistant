@@ -8,6 +8,8 @@ from pymodbus.client.sync import ModbusTcpClient
 
 _LOGGER = logging.getLogger(__name__)
 
+PERCENT = "%"
+
 
 async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the sensor platform."""
@@ -17,9 +19,12 @@ async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     async def async_update_data():
         """Fetch date from thessla device"""
         client.connect()
-        result = client.read_input_registers(16, 3, unit=10)
+        temperatures = client.read_input_registers(16, 3, unit=10)
+        fan_speed = client.read_holding_registers(4210, 1, unit=10)
         client.close()
-        return list(map(get_data_from_register, result.registers))
+        data = list(map(get_data_from_register, temperatures.registers))
+        data.append(fan_speed.registers[0])
+        return data
 
     def get_data_from_register(register):
         return round(register * 0.1, 1)
@@ -35,14 +40,17 @@ async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     )
 
     sensors = [
-        ["Temperatura czerpni", TEMP_CELSIUS, 0],
-        ["Temperatura nawiewu", TEMP_CELSIUS, 1],
-        ["Temperatura wywiewu", TEMP_CELSIUS, 2],
+        ["Temperatura czerpni", TEMP_CELSIUS, 0, None],
+        ["Temperatura nawiewu", TEMP_CELSIUS, 1, None],
+        ["Temperatura wywiewu", TEMP_CELSIUS, 2, None],
+        ["Wydajność wentylacji", PERCENT, 3, "mdi:fan"],
     ]
 
     entities = []
     for sensor in sensors:
-        entities.append(ThesslaSensor(sensor[0], sensor[1], sensor[2], coordinator))
+        entities.append(
+            ThesslaSensor(sensor[0], sensor[1], sensor[2], sensor[3], coordinator)
+        )
 
     await coordinator.async_refresh()
 
@@ -52,13 +60,14 @@ async def async_setup_platform(hass, config, add_entities, discovery_info=None):
 class ThesslaSensor(Entity):
     """Representation of a Sensor."""
 
-    def __init__(self, name, unit, registerNumber, coordinator):
+    def __init__(self, name, unit, registerNumber, icon, coordinator):
         """Initialize the sensor."""
         self._state = None
         self._name = name
         self._unit = unit
         self._register_number = registerNumber
         self.coordinator = coordinator
+        self._icon = icon
 
     @property
     def should_poll(self):
@@ -87,3 +96,8 @@ class ThesslaSensor(Entity):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return self._unit
+
+    @property
+    def icon(self):
+        # return "mdi:home"
+        return self._icon
